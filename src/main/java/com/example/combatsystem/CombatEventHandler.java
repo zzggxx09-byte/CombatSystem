@@ -8,64 +8,38 @@ import java.util.Map;
 
 public class CombatEventHandler {
     
-    private static Map<String, Long> playerCooldownTime = new HashMap<>();
+    private static Map<String, Long> lastAttack = new HashMap<>();
     
     @SubscribeEvent
-    public void onPlayerAttack(AttackEntityEvent event) {
-        if (!CombatConfig.COMBAT_SYSTEM_ENABLED) {
-            return;
-        }
-        
+    public void onAttack(AttackEntityEvent event) {
         EntityPlayer player = event.entityPlayer;
-        String playerName = player.getCommandSenderName();
-        long currentTime = System.currentTimeMillis();
+        String name = player.getCommandSenderName();
+        long now = System.currentTimeMillis();
         
-        // Перевіримо cooldown
-        if (playerCooldownTime.containsKey(playerName)) {
-            long lastAttackTime = playerCooldownTime.get(playerName);
-            long cooldownMs = CombatConfig.GLOBAL_COOLDOWN * 50; // Convert ticks to ms
+        // Перевіримо чи можна атакувати
+        if (lastAttack.containsKey(name)) {
+            long lastTime = lastAttack.get(name);
+            long diff = now - lastTime;
             
-            if (currentTime - lastAttackTime < cooldownMs) {
-                // В cooldown'і - блокуємо атаку
+            // 500ms = 0.5 секунди
+            if (diff < 500) {
                 event.setCanceled(true);
                 return;
             }
         }
         
-        // Встановлюємо час атаки
-        playerCooldownTime.put(playerName, currentTime);
+        lastAttack.put(name, now);
     }
     
-    public static boolean isPlayerOnCooldown(EntityPlayer player) {
-        String playerName = player.getCommandSenderName();
-        long currentTime = System.currentTimeMillis();
+    public static boolean canAttack(EntityPlayer player) {
+        String name = player.getCommandSenderName();
+        long now = System.currentTimeMillis();
         
-        if (!playerCooldownTime.containsKey(playerName)) {
-            return false;
+        if (!lastAttack.containsKey(name)) {
+            return true;
         }
         
-        long lastAttackTime = playerCooldownTime.get(playerName);
-        long cooldownMs = CombatConfig.GLOBAL_COOLDOWN * 50;
-        
-        return (currentTime - lastAttackTime) < cooldownMs;
-    }
-    
-    public static float getCooldownPercent(EntityPlayer player) {
-        String playerName = player.getCommandSenderName();
-        long currentTime = System.currentTimeMillis();
-        
-        if (!playerCooldownTime.containsKey(playerName)) {
-            return 0.0f;
-        }
-        
-        long lastAttackTime = playerCooldownTime.get(playerName);
-        long cooldownMs = CombatConfig.GLOBAL_COOLDOWN * 50;
-        long elapsedTime = currentTime - lastAttackTime;
-        
-        if (elapsedTime >= cooldownMs) {
-            return 0.0f;
-        }
-        
-        return (float) elapsedTime / cooldownMs;
+        long lastTime = lastAttack.get(name);
+        return (now - lastTime) >= 500;
     }
 }
