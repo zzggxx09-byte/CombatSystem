@@ -1,0 +1,16 @@
+[
+  {
+    "modid": "combatsystem",
+    "name": "Combat System",
+    "description": "Combat System Mod for Minecraft 1.7.10 - Adds cooldown and animations to combat attacks!",
+    "version": "1.0",
+    "mcversion": "1.7.10",
+    "url": "",
+    "updateUrl": "",
+    "authorList": ["You"],
+    "credits": "Combat System Dev",
+    "logoFile": "",
+    "screenshots": [],
+    "dependencies": []
+  }
+]
