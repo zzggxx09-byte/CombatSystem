@@ -5,15 +5,21 @@ import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
 import net.minecraftforge.client.event.RenderGameOverlayEvent;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.texture.TextureManager;
 import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.entity.Entity;
+import net.minecraft.entity.EntityLivingBase;
+import net.minecraft.util.ResourceLocation;
 import org.lwjgl.opengl.GL11;
 
 public class CooldownIndicatorRenderer {
     
+    // Текстури
+    private static final ResourceLocation READY_TEXTURE = new ResourceLocation("combatsystem:textures/crosshair_ready.png");
+    private static final ResourceLocation COOLDOWN_TEXTURE = new ResourceLocation("combatsystem:textures/crosshair_cooldown.png");
+    
     @SubscribeEvent
     @SideOnly(Side.CLIENT)
-    public void onRenderOverlay(RenderGameOverlayEvent.Pre event) {
+    public void onRenderOverlay(RenderGameOverlayEvent.Post event) {
         if (event.type != RenderGameOverlayEvent.ElementType.CROSSHAIRS) {
             return;
         }
@@ -29,88 +35,75 @@ public class CooldownIndicatorRenderer {
             return;
         }
         
-        Entity pointedEntity = getPointedEntity(player);
+        // Перевіримо чи гравець наводить на моба
+        EntityLivingBase target = getTargetEntity(player);
         
-        if (pointedEntity != null) {
-            float cooldownPercent = CombatEventHandler.getRemainingCooldownPercent(player);
+        if (target != null) {
+            // Є мобу - рисуємо текстуру
+            boolean onCooldown = CombatEventHandler.isPlayerOnCooldown(player);
             
             int screenWidth = event.resolution.getScaledWidth();
             int screenHeight = event.resolution.getScaledHeight();
+            int centerX = screenWidth / 2;
+            int centerY = screenHeight / 2;
             
-            drawCooldownIndicator(mc, screenWidth, screenHeight, cooldownPercent);
+            drawCrosshairTexture(mc, centerX, centerY, onCooldown);
         }
     }
     
-    private void drawCooldownIndicator(Minecraft mc, int screenWidth, int screenHeight, float cooldown) {
-        GL11.glPushMatrix();
-        GL11.glDisable(GL11.GL_TEXTURE_2D);
-        GL11.glDisable(GL11.GL_DEPTH_TEST);
+    private void drawCrosshairTexture(Minecraft mc, int x, int y, boolean onCooldown) {
+        TextureManager textureManager = mc.getTextureManager();
+        
+        // Вибираємо текстуру залежно від cooldown'у
+        ResourceLocation texture = onCooldown ? COOLDOWN_TEXTURE : READY_TEXTURE;
+        
+        textureManager.bindTexture(texture);
+        
         GL11.glEnable(GL11.GL_BLEND);
+        GL11.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
+        GL11.glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
         
-        int centerX = screenWidth / 2;
-        int centerY = screenHeight / 2;
+        // Рисуємо маленьке зображення (16x16 пікселів)
+        int size = 16;
+        drawTexturedRect(x - size/2, y - size/2, size, size, 0, 0, 1, 1);
         
-        int radius = 15;
-        int thickness = 2;
-        
-        if (cooldown > 0.0f) {
-            GL11.glColor4f(1.0f, 0.5f, 0.0f, 0.8f);
-            
-            GL11.glBegin(GL11.GL_TRIANGLE_STRIP);
-            
-            int segments = (int) (360 * cooldown);
-            for (int i = 0; i <= segments; i++) {
-                float angle = (i / 360.0f) * (float) Math.PI * 2.0f;
-                
-                float x1 = (float) Math.cos(angle) * radius;
-                float y1 = (float) Math.sin(angle) * radius;
-                
-                float x2 = (float) Math.cos(angle) * (radius - thickness);
-                float y2 = (float) Math.sin(angle) * (radius - thickness);
-                
-                GL11.glVertex2f(centerX + x1, centerY + y1);
-                GL11.glVertex2f(centerX + x2, centerY + y2);
-            }
-            
-            GL11.glEnd();
-        } else {
-            GL11.glColor4f(0.0f, 1.0f, 0.0f, 0.6f);
-            
-            GL11.glBegin(GL11.GL_LINE_LOOP);
-            int segments = 32;
-            for (int i = 0; i < segments; i++) {
-                float angle = (i / (float) segments) * (float) Math.PI * 2.0f;
-                float x = (float) Math.cos(angle) * radius;
-                float y = (float) Math.sin(angle) * radius;
-                GL11.glVertex2f(centerX + x, centerY + y);
-            }
-            GL11.glEnd();
-        }
-        
-        GL11.glEnable(GL11.GL_TEXTURE_2D);
-        GL11.glEnable(GL11.GL_DEPTH_TEST);
-        GL11.glPopMatrix();
+        GL11.glDisable(GL11.GL_BLEND);
     }
     
-    private Entity getPointedEntity(EntityPlayer player) {
+    private void drawTexturedRect(int x, int y, int width, int height, float minU, float minV, float maxU, float maxV) {
+        float f = 1.0F / 256.0F;
+        GL11.glBegin(GL11.GL_QUADS);
+        GL11.glTexCoord2f(minU * f, maxV * f);
+        GL11.glVertex2f((float)(x + 0), (float)(y + height));
+        GL11.glTexCoord2f(maxU * f, maxV * f);
+        GL11.glVertex2f((float)(x + width), (float)(y + height));
+        GL11.glTexCoord2f(maxU * f, minV * f);
+        GL11.glVertex2f((float)(x + width), (float)(y + 0));
+        GL11.glTexCoord2f(minU * f, minV * f);
+        GL11.glVertex2f((float)(x + 0), (float)(y + 0));
+        GL11.glEnd();
+    }
+    
+    private EntityLivingBase getTargetEntity(EntityPlayer player) {
         double distance = 5.0D;
-        Entity pointedEntity = null;
-        
-        double closestDistance = Double.MAX_VALUE;
+        EntityLivingBase target = null;
+        double closestDistance = distance;
         
         for (Object obj : player.worldObj.getLoadedEntityList()) {
-            Entity entity = (Entity) obj;
-            
-            if (entity != player && !entity.isInvisible()) {
-                double entityDistance = entity.getDistance(player.posX, player.posY, player.posZ);
+            if (obj instanceof EntityLivingBase) {
+                EntityLivingBase entity = (EntityLivingBase) obj;
                 
-                if (entityDistance < distance && entityDistance < closestDistance) {
-                    closestDistance = entityDistance;
-                    pointedEntity = entity;
+                if (entity != player && entity.isEntityAlive()) {
+                    double dist = entity.getDistance(player.posX, player.posY, player.posZ);
+                    
+                    if (dist < closestDistance) {
+                        closestDistance = dist;
+                        target = entity;
+                    }
                 }
             }
         }
         
-        return pointedEntity;
+        return target;
     }
 }
