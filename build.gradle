@@ -24,7 +24,21 @@ targetCompatibility = JavaVersion.VERSION_1_8
 minecraft {
     version = "1.7.10-10.13.4.1614-1.7.10"
     runDir = "run"
-    mappings = "snapshot_20151025"
+    mappings = "stable_12"
+}
+
+processResources {
+    inputs.property "version", project.version
+    inputs.property "mcversion", minecraft.version
+
+    from(sourceSets.main.resources.srcDirs) {
+        include 'mcmod.info'
+        expand 'version': project.version, 'mcversion': minecraft.version
+    }
+
+    from(sourceSets.main.resources.srcDirs) {
+        exclude 'mcmod.info'
+    }
 }
 
 dependencies {
