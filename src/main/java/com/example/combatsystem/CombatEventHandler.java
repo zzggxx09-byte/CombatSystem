@@ -95,7 +95,8 @@ public class CombatEventHandler {
     public static float getRemainingCooldownPercent(EntityPlayer player) {
         String playerName = player.getCommandSenderName();
         
-        if (!player.isCreative() && CombatConfig.COMBAT_SYSTEM_ENABLED) {
+        // Для 1.7.10 використовуємо capabilities.isCreativeMode
+        if (!player.capabilities.isCreativeMode && CombatConfig.COMBAT_SYSTEM_ENABLED) {
             if (playerAttackCooldown.containsKey(playerName)) {
                 int remaining = playerAttackCooldown.get(playerName);
                 int cooldown = CombatConfig.getCooldownForTool("default");
