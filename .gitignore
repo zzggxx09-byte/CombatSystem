@@ -1,0 +1,16 @@
+.gradle/
+build/
+.idea/
+*.iml
+run/
+.DS_Store
+*.log
+eclipse/
+bin/
+.classpath
+.project
+.settings/
+*.swp
+*.swo
+__pycache__/
+target/
