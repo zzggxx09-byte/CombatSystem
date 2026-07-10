@@ -17,7 +17,7 @@ public class CombatSystem {
     
     @EventHandler
     public void init(FMLInitializationEvent event) {
-        // Серверна сторона
+        // Сервеgрна сторона
         MinecraftForge.EVENT_BUS.register(new CombatEventHandler());
         
         // Клієнтська сторона
